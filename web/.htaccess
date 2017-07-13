@@ -1,0 +1,8 @@
+<IfModule rewrite_module>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule .* dispatch.php [L,QSA]
+  
+  RewriteRule ^$ dispatch.php [L,QSA]
+</IfModule>

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="stylesheet"href=" https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+  <script src="//code.jquery.com/jquery-1.12.0.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/backbone.js/1.2.3/backbone-min.js"></script>
+  
+  <style type="text/css">
+  
+    .transaction {
+      float: none !important;
+      display: inline-block;
+      vertical-align: top;
+    }
+    
+    .transaction > div {
+      width: 100%;
+      margin: 5px 5px 5px 0;
+      border: 1px solid #999;
+    }
+    
+    .transaction > div > * {
+      margin: 5px;
+    }
+    
+    .transaction table {
+      margin: 5px 0;
+    }
+    
+    span.userid:before {
+      content: "User: ";
+    }
+    
+    span.userid,
+    span.timestamp {
+      float: left;
+      display: block;
+      width: 25%;
+      margin: 0;
+      padding: 3px 3px 6px;
+      box-sizing: border-box;
+      text-align: left;
+      font-size: 10px;
+    }
+    
+    span.timestamp {
+      float: right;
+      width: 75%;
+      text-align: right;
+    }
+    
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Electronic Journal Viewer</h1>
+    <table class="table hidden-print" data-toggle="table" data-url="./" data-data-field="items" data-x-pagination="1" data-page-size="10" data-id-field="name" data-unique-id="name" data-click-to-select="1" data-single-select="1" data-side-pagination="server">
+      <thead>
+        <tr>
+          <th data-checkbox="1"></th>
+          <th data-field="name">Filename</th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+  
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12 col-sm-12">
+        <h2>Transactions</h2>
+        <ul id="transaction-filter" class="nav nav-pills hidden-print"></ul>
+      </div>
+    </div>
+    <div id="transactions">
+    </div>
+  </div>
+
+  <script type="text/javascript">
+  
+  function pv (v) {
+    return parseFloat (Math.round (v * 100) / 100).toFixed (2).toLocaleString ();
+  }
+  
+  $(function () {
+    // Create Backbone-collection
+    var Collection = new Backbone.Collection ();
+    var Canvas = $('#transactions');
+    
+    Collection.parse = function (data) { return data.items; };
+    
+    // Prepare to output transactions from an ej-file
+    Collection.on ('sync', function () {
+      // Create a new list
+      Canvas.empty ();
+      $('#transaction-filter').children ().hide ();
+      var list = $('<div />').addClass ('row').appendTo (Canvas);
+      
+      // Output all transactions
+      Collection.each (function (model) {
+        // Gather some informations about the transaction
+        var tClass = model.get ('Class');
+        var records = model.get ('Records');
+        
+        // Create an element for this transaction
+        var item = $('<div />');
+        
+        item
+        .append ($('<span />').addClass ('userid').text (model.get ('UserID') + ' / ' + model.get ('ID')))
+        .append ($('<span />').addClass ('timestamp').text (model.get ('Date')));
+        
+        // Output depending on class
+        switch (tClass) {
+        case 'libEJ_Transaction_Model':
+          item
+          .append ($('<h3/>').text ('Model'))
+          .append ($('<p>').addClass ('version').text (model.get ('Model') + ' / ' + model.get ('Version')));
+          
+          break;
+        case 'libEJ_Transaction_Reset':
+          return; // Skip that record
+        case 'libEJ_Transaction_Normal':
+        case 'libEJ_Transaction_Storno':
+          item.append ($('<h3/>').text ((tClass == 'libEJ_Transaction_Normal' ? 'Bon' : 'Storno') + (model.get ('Flags').isCopy ? ' **COPY**' : '')));
+          var sublist = $('<table />').addClass ('table').appendTo (item);
+          var entries = model.get ('Entries');
+          
+          // Output normal entries from that transaction
+          for (var i = 0; i < entries.length; i++)
+            $('<tr />').appendTo (sublist)
+              .append ($('<td />').text (entries [i].Count))
+              .append ($('<td />').text (entries [i].Title))
+              .append ($('<td />').html (pv (entries [i].Price) + ' &euro;'))
+              .append ($('<td />').text (entries [i].TaxID ? entries [i].TaxID : '-/-'));
+          
+          // Output subtotal (if there is one)
+          var subtotal = model.get ('Subtotal');
+          
+          if (subtotal)
+            $('<tr />').appendTo (sublist)
+              .append ($('<td />'))
+              .append ($('<td />').text ('Subtotal'))
+              .append ($('<td />').html (pv (subtotal) + ' &euro;'))
+              .append ($('<td />'));
+          
+          // Output taxes
+          var taxes = model.get ('Taxes');
+          
+          for (tax in taxes)
+            $('<tr />').appendTo (sublist)
+              .append ($('<td />').text (pv (taxes [tax].Rate) + ' %'))
+              .append ($('<td />').text ('Tax [' + taxes [tax].Group + ']'))
+              .append ($('<td />').html (pv (taxes [tax].Amount) + ' &euro;'))
+              .append ($('<td />').html (pv (taxes [tax].Value) + ' &euro;'));
+          
+          // Output total
+          var total = model.get ('Total');
+          
+          if (total)
+            $('<tr />').appendTo (sublist)
+              .append ($('<td />'))
+              .append ($('<td />').text ('Total'))
+              .append ($('<td />').html (pv (total) + ' &euro;'))
+              .append ($('<td />'));
+          
+          var totalGiven = model.get ('TotalGiven');
+          
+          if (totalGiven)
+            $('<tr />').appendTo (sublist)
+              .append ($('<td />'))
+              .append ($('<td />').text (model.get ('TotalMethod') || 'Given'))
+              .append ($('<td />').html (pv (totalGiven) + ' &euro;'))
+              .append ($('<td />'));
+          
+          var change = model.get ('Change');
+          
+          if (change)
+            $('<tr />').appendTo (sublist)
+              .append ($('<td />'))
+              .append ($('<td />').text ('Change'))
+              .append ($('<td />').html (pv (change) + ' &euro;'))
+              .append ($('<td />'));
+          
+          // Process unhandled records
+          for (var i = 0; i < records.length; i++) {
+            var rclass = records [i].Class;
+            var rtext = records [i].Value;
+            
+            switch (rclass) {
+            case 'libEJ_Record_Entry':
+            case 'libEJ_Record_Subtotal':
+            case 'libEJ_Record_Tax':
+            case 'libEJ_Record_Total':
+            case 'libEJ_Record_Total_Cash':
+            case 'libEJ_Record_Change':
+              continue;
+            default:
+              rtext = rclass + ' ' + rtext;
+            case 'libEJ_Record_NoSale':
+            case 'libEJ_Record_Text':
+              if ((i >= entries.length) || (rclass != 'libEJ_Record_Text'))
+                item.append ($('<p />').text (rtext));
+            }
+            
+          }
+          
+          break;
+        case 'libEJ_Transaction_OPX':
+        case 'libEJ_Transaction_OPZ':
+        case 'libEJ_Transaction_X1':
+        case 'libEJ_Transaction_Z1':
+          // Append header
+          item.append ($('<h3/>').text (tClass.substr (18)));
+          
+          // Output records
+          var sublist = $('<table />').addClass ('table').appendTo (item);
+          
+          for (var i = 0; i < records.length; i++) {
+            if (records [i].Title)
+              $('<tr />').appendTo (sublist)
+                .append ($('<td />').text (records [i].Count || ''))
+                .append ($('<td />').text (records [i].Title))
+                .append ($('<td />').html (records [i].Amount ? pv (records [i].Amount) + ' &euro;' : ''))
+                .append ($('<td />').text ());
+            else if (records [i].Class != 'libEJ_Record_Text')
+              $('<tr />').appendTo (sublist)
+                .append ($('<td />'))
+                .append ($('<td />').attr ('colspan', 3).text (records [i].Value));
+          }
+          
+          break;
+        case 'libEJ_Transaction_Reset':
+        case 'libEJ_Transaction_Unknown':
+        case 'libEJ_Transaction_None':
+        default:
+          item
+          .append ($('<h3/>').text ('Unknown'))
+          .append ($('<p>').addClass ('class').text (tClass));
+        }
+        
+        // Append debug-button
+        $('<button />').text ('Debug Transaction').addClass ('btn btn-block btn-primary hidden-print').appendTo ($('<p />').appendTo (item)).click (function () {
+          console.log (model.toJSON ());
+        });
+        
+        // Output element to list
+        list.append ($('<div />').addClass (tClass + ' transaction col-md-4 col-sm-6').append (item));
+        
+        // Update filter
+        if ($('#transaction-filter').children ('.' + tClass).show ().length > 0)
+          return;
+        
+        $('<a />')
+        .text (tClass.substr (18))
+        .css ('cursor', 'pointer')
+        .click (function () {
+          p = $(this.parentNode);
+          
+          if (p.hasClass ('active'))
+            p.removeClass ('active');
+          else
+            p.addClass ('active');
+          
+          $('#transactions .' + tClass).toggle ();
+        })
+        .appendTo ($('<li />').attr ('role', 'presentation').attr ('data-class', tClass).addClass ('active ' + tClass).appendTo ($('#transaction-filter')));
+      });
+      
+      $('#transaction-filter').children ().each (function () {
+        var tClass = $(this).attr ('data-class');
+        
+        if (!$(this).hasClass ('active'))
+          $('#transactions .' + tClass).hide ();
+        
+        $(this).children ('a').html (tClass.substr (18) + ' <span class="badge">' + $('#transactions .' + tClass).length + '</span>')
+      });
+    });
+    
+    // Register event on table
+    $('table.table').on ('check.bs.table', function (index, row) {
+      // Switch collection-uri
+      Collection.url = row.uri + '/';
+      
+      // Request data from server
+      Collection.fetch ();
+    });
+  });
+  
+  </script>
+</body>
+</html>
