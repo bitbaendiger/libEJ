@@ -1,5 +1,7 @@
 <?PHP
 
+  require_once ('libEJ/Interface/Parser.php');
+  
   require_once ('libEJ/Transaction.php');
   require_once ('libEJ/Transaction/None.php');
   require_once ('libEJ/Transaction/Model.php');
@@ -36,7 +38,7 @@
   if (!extension_loaded ('mbstring') && !dl ('mbstring.so'))
     return;
   
-  class libEJ_Parser_Sharp {
+  class libEJ_Parser_Sharp implements libEJ_Interface_Parser {
     private $fn = '';
     private $fp = null;
     private $buffer = '';
@@ -45,7 +47,7 @@
     
     // {{{ __construct
     /**
-     * Create a new EJ-Parser
+     * Create a new EJ-Parser for Sharp Cash-Registers with a well-formed binary header
      * 
      * @param mixed $Filename
      * 
@@ -124,7 +126,13 @@
       $ID = bin2hex (substr ($header, 9, 4));
       $User = bin2hex ($header [13]);
       $Length = (ord ($header [28]) << 8) + ord ($header [29]); 
-      $Length2 = (ord ($header [30]) << 8) + ord ($header [31]);
+      
+      if (strlen ($header) >= 32)
+        $Length2 = (ord ($header [30]) << 8) + ord ($header [31]);
+      else {
+        $Length2 = 0;
+        dump ($header);
+      }
       
       // Handle bits
       $isAction = (($Subtype & 0x0001) == 0x0001);
@@ -476,7 +484,10 @@
         $Record = array_shift ($Records);
         
         // Retrive the type of the record
-        $rType = (ord ($Record [30]) << 8) + ord ($Record [31]);
+        if (strlen ($Record) >= 32)
+          $rType = (ord ($Record [30]) << 8) + ord ($Record [31]);
+        else
+          $rType = 0;
         
         if (isset ($this->Status [$Type][$rType]))
           $this->Status [$Type][$rType]++;

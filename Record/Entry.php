@@ -99,14 +99,18 @@
     /**
      * Set the ID of the referenced tax
      * 
-     * @param int $ID
+     * @param mixed $ID Number or letter describing the Tax-ID
      * 
      * @access public
      * @return void
      **/
     public function setTaxID ($ID) {
-      if ($ID !== null)
-        $ID = intval ($ID);
+      if ($ID !== null) {
+        if ((strlen ($ID) == 1) && (ord ($ID) > 64) && (ord ($ID) < 91))
+          $ID = ord ($ID) - 64;
+        else
+          $ID = intval ($ID);
+      }
       
       $this->TaxID = $ID;
     }

@@ -13,6 +13,23 @@
     // All records
     private $Records = array ();
     
+    // {{{ __toString
+    /**
+     * Convert this transaction into a string
+     * 
+     * @access friendly
+     * @return string
+     **/
+    function __toString () {
+      $Result = sprintf ('#%06d   %s' . "\n" . '%02d                     000000' . "\n", $this->ID, date ('d/m/Y   H:i', $this->Timestamp), $this->User);
+      
+      foreach ($this->Records as $Record)
+        $Result .= strval ($Record) . "\n";
+      
+      return $Result;
+    }
+    // }}}
+    
     // {{{ getTimestamp
     /**
      * Retrive the timestamp from this transaction
