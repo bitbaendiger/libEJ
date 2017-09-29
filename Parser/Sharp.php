@@ -248,6 +248,7 @@
         0x2902 => 'libEJ_Record_Tax',
         0x2903 => 'libEJ_Record_Tax',
         0x2904 => 'libEJ_Record_Tax',
+        0x4000 => 'libEJ_Record_Unknown', // ALTER SALDO    *0.00
         0x5101 => 'libEJ_Record_Tax',
         0x5102 => 'libEJ_Record_Tax',
         0x5103 => 'libEJ_Record_Tax',
@@ -296,6 +297,7 @@
         
         // Seen on 0x12 / PGM
         0x0002 => 'libEJ_Record_Unknown', // WARENGRUPPEN
+        0x000D => 'libEJ_Record_Unknown', // BAR   L999999.99 00
         # 0x0016 => see 0x03
         0x0018 => 'libEJ_Record_Unknown', // BEDIENER
         # 0x0019 => see 0x01
@@ -492,10 +494,13 @@
       );
       
       // Patch special cases
-      if ($Handle instanceof libEJ_Transaction_X1)
+      if ($Handle instanceof libEJ_Transaction_OPX) {
+        $rTypes [0x4000] = 'libEJ_Record_OPX_SumQuantity';
         $rTypes [0x0401] = 'libEJ_Record_OPX_ProductGroup';        
-      else
+      } else {
+        $rTypes [0x4000] = 'libEJ_Record_Unknown';
         $rTypes [0x0401] = 'libEJ_Record_Discount';
+      }
       
       $lHandle = null;
       
@@ -551,8 +556,7 @@
         // Check if the current type is mapped
         } elseif (!isset ($rTypes [$rType]) || !class_exists ($rTypes [$rType])) {
           trigger_error ('Unknown record-type 0x' . dechex ($rType) . ' on ' . $ID . ' / ' . $this->fn . ':' . $this->line);
-          echo get_class ($Handle), "\n";
-          dump ($Record);
+          
           continue;
         // Create a new handle of mapped type
         } else
