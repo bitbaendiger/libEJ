@@ -8,6 +8,7 @@
     const TYPE_PRODUCTGROUPS = 0x03;
     const TYPE_TRANSACTION = 0x04;
     const TYPE_JOURNAL = 0x05;
+    const TYPE_HOURS = 0x1b;
     
     // {{{ __toString
     /**
@@ -28,6 +29,8 @@
           return 'Transaktion';
         case self::TYPE_JOURNAL:
           return 'Journal';
+        case self::TYPE_HOURS:
+          return 'Stundenbericht';
         
         default:
           return 'Unknown OPX-Type';

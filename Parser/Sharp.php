@@ -42,6 +42,7 @@
     private $fn = '';
     private $fp = null;
     private $buffer = '';
+    private $line = 0;
     
     public $Status = array ();
     
@@ -62,6 +63,8 @@
         throw new Exception ('Could not open file');
       else
         $this->fn = $Filename;
+      
+      $this->line = 0;
     }
     // }}}
     
@@ -79,6 +82,7 @@
       if (($p = strpos ($this->buffer, "\r\n")) !== false) {
         $rc = substr ($this->buffer, 0, $p);
         $this->buffer = substr ($this->buffer, $p + 2);
+        $this->line++;
         
         return $rc;
       }
@@ -93,6 +97,7 @@
         if (($p = strpos ($this->buffer, "\r\n", $l - 1)) !== false) {
           $rc = substr ($this->buffer, 0, $p);
           $this->buffer = substr ($this->buffer, $p + 2);
+          $this->line++;
           
           return $rc;
         }
@@ -102,6 +107,10 @@
       $rc = $this->buffer;
       $this->buffer = false;
       $this->fp = false;
+      $this->line++;
+      
+      if (strlen ($rc) == 0)
+        $rc = false;
       
       return $rc;
     }
@@ -129,10 +138,8 @@
       
       if (strlen ($header) >= 32)
         $Length2 = (ord ($header [30]) << 8) + ord ($header [31]);
-      else {
+      else
         $Length2 = 0;
-        dump ($header);
-      }
       
       // Handle bits
       $isAction = (($Subtype & 0x0001) == 0x0001);
@@ -624,6 +631,7 @@
             0x0010 => libEJ_Record_OPX_Type::TYPE_TRANSACTION,
             0x0015 => libEJ_Record_OPX_Type::TYPE_USERS,
             0x0016 => libEJ_Record_OPX_Type::TYPE_USER,
+            0x001B => libEJ_Record_OPX_Type::TYPE_HOURS,
             0x00A0 => libEJ_Record_OPX_Type::TYPE_JOURNAL,
           );
           
