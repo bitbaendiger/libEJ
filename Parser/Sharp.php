@@ -18,6 +18,7 @@
   require_once ('libEJ/Record/Unknown.php');
   require_once ('libEJ/Record/Version.php');
   require_once ('libEJ/Record/Entry.php');
+  require_once ('libEJ/Record/Discount.php');
   require_once ('libEJ/Record/NoSale.php');
   require_once ('libEJ/Record/Subtotal.php');
   require_once ('libEJ/Record/Subtotal/Storno.php');
@@ -158,7 +159,7 @@
       
       for ($i = 1; $i < $Length; $i++)
         if (($Record = $this->getRecord ()) === false) {
-          trigger_error ('Record-Read failed in ' . $this->fn);
+          trigger_error ('Record-Read failed in ' . $this->fn . ':' . $this->line);
           
           return false;
         } else
@@ -228,7 +229,7 @@
         // Seen on 0x00 / Normal transaction
         0x0100 => 'libEJ_Record_Entry',
         0x0200 => 'libEJ_Record_Entry',
-        # 0x0401 => TODO! Check this one!
+        0x0401 => 'libEJ_Record_Discount',
         0x0800 => 'libEJ_Record_Subtotal',
         0x0D01 => 'libEJ_Record_Tax',
         0x0D02 => 'libEJ_Record_Tax',
@@ -287,6 +288,7 @@
         // Seen on 0x06 / Reset
         0x0109 => 'libEJ_Record_Unknown', // GESAMT RAM SICH
         0x0201 => 'libEJ_Record_Unknown', // Unknown, appears on reset
+        0x0501 => 'libEJ_Record_Op_Folder',
         0x0502 => 'libEJ_Record_Unknown', // ORDNER WÄHLEN + 1 Text
         
         // Seen on 0x09 / Version
@@ -297,6 +299,8 @@
         # 0x0016 => see 0x03
         0x0018 => 'libEJ_Record_Unknown', // BEDIENER
         # 0x0019 => see 0x01
+        0x001C => 'libEJ_Record_Unknown', // FUNKTIONSAUSWAHL
+        0x001E => 'libEJ_Record_Unknown', // BERICHTE
         # 0x0023 => TODO! Check this one
         0x0024 => 'libEJ_Record_Unknown', // MEHRWERTSTEUER
         0x0025 => 'libEJ_Record_Unknown', // MWST 1  7.0000 %
@@ -359,6 +363,7 @@
         # 0x5000 => see 0x03
         0x5100 => 'libEJ_Record_OPX_Quantity', // KEIN VERKAUF  1 Q
         0x5900 => 'libEJ_Record_OPX_Quantity', // RECHG ZÄHLER  1 Q
+        0x6000 => 'libEJ_Record_OPX_Quantity', // ALTER SALDO   1 Q
         # 0x7001 => see 0x03
         # 0x7100 => see 0x03
         # 0x7200 => see 0x03
@@ -455,7 +460,6 @@
         # 0x0412 => see 0x13
         # 0x0413 => see 0x13
         # 0x047# => see 0x03
-        0x0501 => 'libEJ_Record_Op_Folder',
         # 0x2001 => see 0x13
         # 0x2002 => see 0x13
         # 0x2101 => see 0x13
@@ -486,6 +490,13 @@
         # 0xF502 => see 0x13
         # 0xF503 => see 0x13
       );
+      
+      // Patch special cases
+      if ($Handle instanceof libEJ_Transaction_X1)
+        $rTypes [0x0401] = 'libEJ_Record_OPX_ProductGroup';        
+      else
+        $rTypes [0x0401] = 'libEJ_Record_Discount';
+      
       $lHandle = null;
       
       while (count ($Records) > 0) {
@@ -539,8 +550,9 @@
           continue;
         // Check if the current type is mapped
         } elseif (!isset ($rTypes [$rType]) || !class_exists ($rTypes [$rType])) {
-          trigger_error ('Unknown record-type 0x' . dechex ($rType) . ' on ' . $ID . ' / ' . $this->fn);
-          
+          trigger_error ('Unknown record-type 0x' . dechex ($rType) . ' on ' . $ID . ' / ' . $this->fn . ':' . $this->line);
+          echo get_class ($Handle), "\n";
+          dump ($Record);
           continue;
         // Create a new handle of mapped type
         } else
@@ -630,17 +642,21 @@
         } elseif ($rHandle instanceof libEJ_Record_OPX_Type) {
           static $OPX_Types = array (
             0x0003 => libEJ_Record_OPX_Type::TYPE_PRODUCTGROUPS,
+            0x0006 => libEJ_Record_OPX_Type::TYPE_PRODUCTS,
+            0x0007 => libEJ_Record_OPX_Type::TYPE_BY_PRODUCTGROUPS,
             0x0010 => libEJ_Record_OPX_Type::TYPE_TRANSACTION,
             0x0015 => libEJ_Record_OPX_Type::TYPE_USERS,
             0x0016 => libEJ_Record_OPX_Type::TYPE_USER,
             0x001B => libEJ_Record_OPX_Type::TYPE_HOURS,
+            0x0020 => libEJ_Record_OPX_Type::TYPE_TABLES,
+            0x0021 => libEJ_Record_OPX_Type::TYPE_BY_USER,
             0x00A0 => libEJ_Record_OPX_Type::TYPE_JOURNAL,
           );
           
           if (isset ($OPX_Types [$rType]))
             $rHandle->setValue ($OPX_Types [$rType]);
           else
-            trigger_error ('Unknown OPX-Type ' . $rType);
+            trigger_error ('Unknown OPX-Type ' . $rType . ' on ' . $this->line);
         
         } elseif ($rHandle instanceof libEJ_Record_OPX_User) {
           $Info = $this->readString ($Record);
