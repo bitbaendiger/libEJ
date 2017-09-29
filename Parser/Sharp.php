@@ -34,6 +34,7 @@
   require_once ('libEJ/Record/OPX/Quantity.php');
   require_once ('libEJ/Record/OPX/SumQuantity.php');
   require_once ('libEJ/Record/OPX/ProductGroup.php');
+  require_once ('libEJ/Record/Op/Folder.php');
   
   if (!extension_loaded ('mbstring') && !dl ('mbstring.so'))
     return;
@@ -454,6 +455,7 @@
         # 0x0412 => see 0x13
         # 0x0413 => see 0x13
         # 0x047# => see 0x03
+        0x0501 => 'libEJ_Record_Op_Folder',
         # 0x2001 => see 0x13
         # 0x2002 => see 0x13
         # 0x2101 => see 0x13
